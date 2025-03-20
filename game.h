@@ -14,7 +14,7 @@
 #define FOODS 50
 #define MAX_SNAKE_LENGTH (WIDTH * HEIGHT)
 
-// Structures
+
 typedef struct {
     char type;
 } Cell;
@@ -31,12 +31,12 @@ typedef struct {
     int consumed;
 } Food;
 
-// Variables globales (déclarées dans game.c)
+
 extern Cell gameBoard[HEIGHT][WIDTH];
 extern Food food[FOODS];
 extern int isGameOver;
 
-// Prototypes des fonctions
+
 int  getch(void);
 void fill_board(void);
 void draw_food(void);
