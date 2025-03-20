@@ -19,7 +19,6 @@ int getch(void) {
     return ch;
 }
 
-/* 1) Dessin du plateau */
 void fill_board() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -41,10 +40,17 @@ void draw_food() {
 }
 
 void draw_snake(const Snake *snake) {
-    
+    if (snake->bodyX[0] < 0 || snake->bodyX[0] >= WIDTH ||
+        snake->bodyY[0] < 0 || snake->bodyY[0] >= HEIGHT) {
+        return; // Prevent drawing out-of-bounds head
+    }
     gameBoard[snake->bodyY[0]][snake->bodyX[0]].type = 'S';
     
     for (int i = 1; i < snake->length; i++) {
+        if (snake->bodyX[i] < 0 || snake->bodyX[i] >= WIDTH ||
+            snake->bodyY[i] < 0 || snake->bodyY[i] >= HEIGHT) {
+            continue; // Skip invalid body segments
+        }
         gameBoard[snake->bodyY[i]][snake->bodyX[i]].type = 'o';
     }
 }
@@ -158,7 +164,6 @@ void checkCollisions(Snake *snake) {
         }
     }
 }
-
 
 static int isCellTakenByFood(int x, int y, int upToIndex) {
     for (int i = 0; i < upToIndex; i++) {

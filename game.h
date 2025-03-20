@@ -9,8 +9,8 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define WIDTH 25
-#define HEIGHT 25
+#define WIDTH 30
+#define HEIGHT 15
 #define FOODS 50
 #define MAX_SNAKE_LENGTH (WIDTH * HEIGHT)
 
