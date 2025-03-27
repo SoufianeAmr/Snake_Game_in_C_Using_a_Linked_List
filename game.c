@@ -1,23 +1,30 @@
 #define _XOPEN_SOURCE 700
+#include <fcntl.h>  
 #include "game.h"
-
 
 Cell gameBoard[HEIGHT][WIDTH];
 Food food[FOODS];
 int isGameOver = 0;
 
-
 int getch(void) {
     struct termios oldt, newt;
-    int ch;
+    unsigned char ch;
+    int n;
+
     tcgetattr(STDIN_FILENO, &oldt);
     newt = oldt;
     newt.c_lflag &= ~(ICANON | ECHO);
+    newt.c_cc[VMIN] = 0;
+    newt.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    ch = getchar();
+
+    n = read(STDIN_FILENO, &ch, 1);
+
     tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-    return ch;
+
+    return (n <= 0) ? -1 : ch;
 }
+
 
 void fill_board() {
     for (int y = 0; y < HEIGHT; y++) {
@@ -42,7 +49,7 @@ void draw_food() {
 void draw_snake(const Snake *snake) {
     if (snake->bodyX[0] < 0 || snake->bodyX[0] >= WIDTH ||
         snake->bodyY[0] < 0 || snake->bodyY[0] >= HEIGHT) {
-        return; // Prevent drawing out-of-bounds head
+        return; 
     }
     gameBoard[snake->bodyY[0]][snake->bodyX[0]].type = 'S';
     
@@ -77,36 +84,43 @@ void drawGameBoard(const Snake *snake) {
     print_board();
 }
 
-
 char getInput() {
-    int ch = getch();
+    static int escape = 0;
+    static int bracket = 0;
+    int ch;
 
-    
-    if (ch == 27) {
-        int next1 = getch(); 
-        if (next1 == 91) {
-            int next2 = getch(); 
-            switch (next2) {
-                case 65: return 'W'; 
-                case 66: return 'S'; 
-                case 67: return 'D'; 
-                case 68: return 'A'; 
-                default: return '\0';
+    while ((ch = getch()) != -1) {
+        if (escape) {
+            if (ch == '[') {
+                bracket = 1;
+                escape = 0;
+            } else {
+                escape = 0;
+            }
+        } else if (bracket) {
+            bracket = 0;
+            switch (ch) {
+                case 'A': return 'W';
+                case 'B': return 'S';
+                case 'C': return 'D';
+                case 'D': return 'A';
+                default: break;
+            }
+        } else if (ch == 27) {
+            escape = 1;
+        } else {
+            switch (ch) {
+                case 'w': return 'W';
+                case 'a': return 'A';
+                case 's': return 'S';
+                case 'd': return 'D';
+                default: break;
             }
         }
-        return '\0'; 
     }
 
-    // WASD
-    switch (ch) {
-        case 'w': return 'W';
-        case 'a': return 'A';
-        case 's': return 'S';
-        case 'd': return 'D';
-        default:  return '\0';
-    }
+    return '\0';
 }
-
 
 void moveSnake(Snake *snake, char input) {
     if (input == 'W' || input == 'A' || input == 'S' || input == 'D') {

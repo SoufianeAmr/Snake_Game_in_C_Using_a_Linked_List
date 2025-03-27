@@ -3,6 +3,10 @@
 #ifndef GAME_H
 #define GAME_H
 
+#define BASE_DELAY 100000000  
+#define MIN_DELAY  30000000   
+#define SPEED_STEP 3000000   
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

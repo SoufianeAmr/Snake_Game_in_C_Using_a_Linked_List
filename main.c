@@ -1,13 +1,12 @@
-#define _XOPEN_SOURCE 700  // Must be defined before any includes
+#define _XOPEN_SOURCE 700  
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>        // Add this to declare usleep()
-#include "game.h"          // Include your custom header after system headers
-
-// Replace usleep(100000) with:
+#include <unistd.h>        
+#include "game.h"          
 
 int main() {
+    
     srand(time(NULL));
 
     Snake snake;
@@ -19,9 +18,13 @@ int main() {
         char input = getInput();
         moveSnake(&snake, input);
         checkCollisions(&snake);
-        struct timespec delay = {0, 100000000};  // 0 seconds, 100,000,000 nanoseconds
-        nanosleep(&delay, NULL);
 
+
+        long current_delay = BASE_DELAY - (snake.length - 1) * SPEED_STEP;
+        if (current_delay < MIN_DELAY) current_delay = MIN_DELAY;
+        
+        struct timespec delay = {0, current_delay};
+        nanosleep(&delay, NULL);
     }
 
     printf("Game Over! Final Score: %d\n", snake.length * 100);
