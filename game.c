@@ -1,10 +1,12 @@
 #define _XOPEN_SOURCE 700
-#include <fcntl.h>  
+#include <fcntl.h>
 #include "game.h"
 
+// Defines the grid 
 Cell gameBoard[HEIGHT][WIDTH];
-Food food[FOODS];
+Food food;
 int isGameOver = 0;
+int isGameWon = 0;
 
 int getch(void) {
     struct termios oldt, newt;
@@ -25,7 +27,6 @@ int getch(void) {
     return (n <= 0) ? -1 : ch;
 }
 
-
 void fill_board() {
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
@@ -38,36 +39,30 @@ void fill_board() {
     }
 }
 
-void draw_food() {
-    for (int i = 0; i < FOODS; i++) {
-        if (!food[i].consumed) {
-            gameBoard[food[i].y][food[i].x].type = 'F';
-        }
-    }
-}
-
 void draw_snake(const Snake *snake) {
-    if (snake->bodyX[0] < 0 || snake->bodyX[0] >= WIDTH ||
-        snake->bodyY[0] < 0 || snake->bodyY[0] >= HEIGHT) {
-        return; 
-    }
-    gameBoard[snake->bodyY[0]][snake->bodyX[0]].type = 'S';
-    
-    for (int i = 1; i < snake->length; i++) {
-        if (snake->bodyX[i] < 0 || snake->bodyX[i] >= WIDTH ||
-            snake->bodyY[i] < 0 || snake->bodyY[i] >= HEIGHT) {
-            continue; // Skip invalid body segments
+    SnakeSegment *current = snake->head;
+    int isHead = 1;
+    while (current != NULL) {
+        if (current->x >= 0 && current->x < WIDTH &&
+            current->y >= 0 && current->y < HEIGHT) {
+            if (isHead) {
+                gameBoard[current->y][current->x].type = 'S';
+                isHead = 0;
+            } else {
+                gameBoard[current->y][current->x].type = 'o';
+            }
         }
-        gameBoard[snake->bodyY[i]][snake->bodyX[i]].type = 'o';
+        current = current->next;
     }
 }
 
 void clear_screen() {
-    
     system("clear");
 }
 
-void print_board() {
+void print_board(const Snake *snake) {
+    
+    printf("Current Score : %d\n", snake->length * 100 - 100);
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             putchar(gameBoard[y][x].type);
@@ -78,10 +73,10 @@ void print_board() {
 
 void drawGameBoard(const Snake *snake) {
     fill_board();
-    draw_food();
     draw_snake(snake);
+    draw_food();
     clear_screen();
-    print_board();
+    print_board(snake);
 }
 
 char getInput() {
@@ -122,88 +117,148 @@ char getInput() {
     return '\0';
 }
 
+
 void moveSnake(Snake *snake, char input) {
     if (input == 'W' || input == 'A' || input == 'S' || input == 'D') {
-       
-        if ((snake->direction == 'W' && input == 'S') ||
-            (snake->direction == 'S' && input == 'W') ||
-            (snake->direction == 'A' && input == 'D') ||
-            (snake->direction == 'D' && input == 'A')) {
-           
-        } else {
-            snake->direction = input;
+        
+        if (snake->head && snake->head->next) {
+            if ((snake->direction == 'W' && input == 'S') ||
+                (snake->direction == 'S' && input == 'W') ||
+                (snake->direction == 'A' && input == 'D') ||
+                (snake->direction == 'D' && input == 'A')) {
+                isGameOver = 1;
+                return;
+            }
         }
+        snake->direction = input;
     }
-
     
-    for (int i = snake->length - 1; i > 0; i--) {
-        snake->bodyX[i] = snake->bodyX[i - 1];
-        snake->bodyY[i] = snake->bodyY[i - 1];
+    
+    SnakeSegment *newHead = malloc(sizeof(SnakeSegment));
+    if (!newHead) {
+        perror("Failed to allocate memory for new snake segment");
+        exit(EXIT_FAILURE);
     }
-
-    
+    newHead->x = snake->head->x;
+    newHead->y = snake->head->y;
     switch (snake->direction) {
-        case 'W': snake->bodyY[0]--; break;
-        case 'S': snake->bodyY[0]++; break;
-        case 'A': snake->bodyX[0]--; break;
-        case 'D': snake->bodyX[0]++; break;
+        case 'W': newHead->y--; break;
+        case 'S': newHead->y++; break;
+        case 'A': newHead->x--; break;
+        case 'D': newHead->x++; break;
     }
+    newHead->next = snake->head;
+    snake->head = newHead;
+    snake->length++;
 }
 
+
 void checkCollisions(Snake *snake) {
-    
-    for (int i = 0; i < FOODS; i++) {
-        if (!food[i].consumed &&
-            snake->bodyX[0] == food[i].x &&
-            snake->bodyY[0] == food[i].y) {
-            food[i].consumed = 1;
-            // Grandir
-            if (snake->length < MAX_SNAKE_LENGTH) {
-                snake->length++;
+    if (snake->length == MAX_SNAKE_LENGTH) {
+        isGameWon = 1;
+        isGameOver = 1;
+        return;
+    }
+
+
+    if (!food.consumed &&
+        snake->head->x == food.x &&
+        snake->head->y == food.y) {
+        food.consumed = 1;
+       
+    } else {
+        
+        if (snake->length > 1) {
+            SnakeSegment *current = snake->head;
+           
+            while (current->next && current->next->next != NULL) {
+                current = current->next;
+            }
+            if (current->next) {
+                free(current->next);
+                current->next = NULL;
+                snake->length--;
             }
         }
     }
 
-   
-    if (snake->bodyX[0] <= 0 || snake->bodyX[0] >= WIDTH - 1 ||
-        snake->bodyY[0] <= 0 || snake->bodyY[0] >= HEIGHT - 1) {
+    if (snake->head->x <= 0 || snake->head->x >= WIDTH - 1 ||
+        snake->head->y <= 0 || snake->head->y >= HEIGHT - 1) {
         isGameOver = 1;
+        return;
     }
+    
 
-    for (int i = 1; i < snake->length; i++) {
-        if (snake->bodyX[0] == snake->bodyX[i] &&
-            snake->bodyY[0] == snake->bodyY[i]) {
+    SnakeSegment *current = snake->head->next;
+    while (current) {
+        if (snake->head->x == current->x && snake->head->y == current->y) {
             isGameOver = 1;
             break;
         }
+        current = current->next;
     }
 }
 
-static int isCellTakenByFood(int x, int y, int upToIndex) {
-    for (int i = 0; i < upToIndex; i++) {
-        if (!food[i].consumed && food[i].x == x && food[i].y == y) {
-            return 1;
-        }
+static int isCellTaken(int x, int y) {
+    if (gameBoard[y][x].type != ' ') {
+        return 1;
     }
     return 0;
 }
 
-void setup_food() {
-    for (int i = 0; i < FOODS; i++) {
-        food[i].consumed = 0;
+void draw_food() {
+    if (food.consumed) {
         int fx, fy;
         do {
             fx = 1 + rand() % (WIDTH - 2);
             fy = 1 + rand() % (HEIGHT - 2);
-        } while (isCellTakenByFood(fx, fy, i));
-        food[i].x = fx;
-        food[i].y = fy;
+        } while (isCellTaken(fx, fy));
+        food.x = fx;
+        food.y = fy;
+        food.consumed = 0;
     }
+    gameBoard[food.y][food.x].type = 'F';
 }
 
+void setup_food() {
+    food.consumed = 1;
+    draw_food();
+}
+
+
 void setup_snake(Snake *snake) {
-    snake->bodyX[0] = WIDTH / 2;
-    snake->bodyY[0] = HEIGHT / 2;
+    snake->head = malloc(sizeof(SnakeSegment));
+    if (!snake->head) {
+        perror("Failed to allocate memory for snake head");
+        exit(EXIT_FAILURE);
+    }
+    snake->head->x = WIDTH / 2;
+    snake->head->y = HEIGHT / 2;
+    snake->head->next = NULL;
     snake->length = 1;
     snake->direction = 'D'; 
+}
+
+int loadHighScore() {
+    FILE *fin = fopen("highscore.txt", "r");
+    if (fin == NULL) {
+        perror("Failed to open file");
+        return EXIT_FAILURE;
+    }
+    int highscore;
+    fscanf(fin, "%d", &highscore);
+    fclose(fin);
+    return highscore;
+}
+
+void saveScore(int highscore, Snake *snake) {
+    FILE *fin = fopen("highscore.txt", "w");
+    if (highscore > (snake->length * 100 - 100)) {
+        printf("Highscore: %d\n", highscore);
+    } else {
+        highscore = snake->length * 100 - 100;
+        fprintf(fin, "%d", highscore);
+        printf("New highscore of %d!\n", highscore);
+    }
+    fclose(fin);
 }
